@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mano → Scratch Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#101522;--panel:#1a2335;--line:#2d3a52;--text:#f4f7ff;--muted:#a9b5ca;--cyan:#4de1d2;--purple:#9a82ff;--red:#ff647c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 500px at 15% -10%,#26345b 0%,transparent 65%),var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1100px;margin:auto;padding:28px 18px 50px}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:grid;place-items:center;font-size:25px;color:#111827}
+h1{font-size:clamp(24px,4vw,34px);margin:0;letter-spacing:-.7px}.sub{color:var(--muted);margin:4px 0 0}
+.pill{border:1px solid var(--line);padding:8px 12px;border-radius:999px;color:var(--muted);font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);gap:18px}.panel{background:linear-gradient(180deg,#1d2940,#182235);border:1px solid var(--line);border-radius:20px;padding:17px;box-shadow:0 12px 32px #0002}
+.panel h2{font-size:17px;margin:0 0 13px}.camera{position:relative;aspect-ratio:4/3;background:#080d17;border-radius:14px;overflow:hidden;border:1px solid #34415a}
+video,canvas{position:absolute;width:100%;height:100%;inset:0;object-fit:cover;transform:scaleX(-1)}canvas{pointer-events:none}
+.overlay{position:absolute;left:12px;top:12px;background:#0b1222c9;padding:7px 10px;border-radius:9px;font-size:12px;color:#dce8ff}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+button{border:0;border-radius:11px;padding:11px 14px;font:600 14px system-ui;cursor:pointer;background:#2b3952;color:white;transition:.15s}
+button:hover{filter:brightness(1.13);transform:translateY(-1px)}button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.primary{background:linear-gradient(120deg,#20bfae,#398be9);color:#071522}.record{background:#a72f4a}.record.active{background:#ff536e;box-shadow:0 0 0 4px #ff536e2a}
+.secondary{background:#354267}.export{background:linear-gradient(120deg,#8068ed,#a35ee8)}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.stat{background:#111a2a;border:1px solid #29364d;border-radius:12px;padding:12px}.stat small{color:var(--muted);display:block}.stat strong{font-size:20px;display:block;margin-top:3px}
+.right{display:flex;flex-direction:column;gap:18px}.status{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#78869e}.dot.on{background:#4de1a1;box-shadow:0 0 10px #4de1a1}
+.track{height:9px;border-radius:99px;background:#0e1727;overflow:hidden;margin:12px 0 6px}.bar{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .1s}
+.hint{color:var(--muted);font-size:13px;line-height:1.5}.steps{display:grid;gap:12px}.step{display:flex;gap:11px;align-items:flex-start}.num{width:25px;height:25px;border-radius:8px;background:#34446a;display:grid;place-items:center;font-weight:700;flex:none}.step b{display:block;margin-bottom:2px}.step span{font-size:13px;color:var(--muted)}
+.footer{margin-top:18px;color:#8290a8;font-size:12px;text-align:center}.toast{margin-top:12px;color:var(--cyan);font-size:13px;min-height:18px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.right{display:grid;grid-template-columns:1fr}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+ <header class="top"><div class="brand"><div class="logo">✋</div><div><h1>Mano → Scratch Studio</h1><p class="sub">Registra i tuoi gesti e trasformali in un progetto Scratch.</p></div></div><div class="pill">Webcam · Hand tracking · Export .sb3</div></header>
+ <div class="layout">
+  <section class="panel">
+   <h2>1. Tracciamento della mano</h2>
+   <div class="camera"><video id="video" playsinline muted></video><canvas id="draw"></canvas><div class="overlay" id="cameraLabel">Webcam non avviata</div></div>
+   <div class="controls"><button class="primary" id="start">▶ Avvia webcam</button><button class="record" id="record" disabled>● Registra</button><button id="stop" disabled>■ Ferma</button><button class="secondary" id="play" disabled>↻ Riproduci</button></div>
+   <div class="statgrid"><div class="stat"><small>Fotogrammi registrati</small><strong id="frames">0</strong></div><div class="stat"><small>Durata registrazione</small><strong id="duration">0,0 s</strong></div><div class="stat"><small>Posizione X</small><strong id="posx">—</strong></div><div class="stat"><small>Posizione Y</small><strong id="posy">—</strong></div></div>
+   <div class="toast" id="toast" aria-live="polite"></div>
+  </section>
+  <aside class="right">
+   <section class="panel"><h2>2. Collegamento a Scratch</h2>
+    <div class="status"><i class="dot" id="handDot"></i><span id="handStatus">In attesa della mano</span></div>
+    <div class="track"><div class="bar" id="confidence"></div></div>
+    <p class="hint">La mano viene convertita in coordinate Scratch (X da -220 a 220, Y da -165 a 165). Quando esporti, il progetto contiene una sequenza di blocchi che riproduce il movimento.</p>
+    <button class="export" id="export" disabled style="width:100%;margin-top:8px">⬇ Esporta progetto Scratch (.sb3)</button>
+   </section>
+   <section class="panel"><h2>Come si usa</h2><div class="steps">
+    <div class="step"><div class="num">1</div><div><b>Avvia la webcam</b><span>Consenti l'accesso alla fotocamera quando il browser lo chiede.</span></div></div>
+    <div class="step"><div class="num">2</div><div><b>Registra il gesto</b><span>Muovi la mano nello spazio davanti alla webcam, poi premi Ferma.</span></div></div>
+    <div class="step"><div class="num">3</div><div><b>Esporta per Scratch</b><span>Apri scratch.mit.edu, scegli Crea e trascina il file .sb3 nell'editor.</span></div></div>
+   </div></section>
+   <section class="panel"><h2>Anteprima del personaggio</h2><div style="background:#0e1727;border-radius:14px;min-height:140px;display:grid;place-items:center;overflow:hidden"><div id="sprite" style="font-size:72px;transition:transform .08s">🐱</div></div><p class="hint">Durante la riproduzione, il gatto segue la traiettoria registrata.</p></section>
+  </aside>
+ </div>
+ <p class="footer">I video restano nel tuo browser: questa pagina non registra né invia immagini a un server. Il tracciamento richiede una connessione internet per caricare MediaPipe.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=id=>document.getElementById(id), video=$('video'), canvas=$('draw'), ctx=canvas.getContext('2d');
+let hands, camera, recording=false, samples=[], startTime=0, lastSample=0, current=null, playing=false;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function say(t){$('toast').textContent=t}
+function coords(lm){const p=lm[8];return {x:Math.round((.5-p.x)*440),y:Math.round((.5-p.y)*330)}}
+function drawHand(lm){
+ canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;ctx.clearRect(0,0,canvas.width,canvas.height);
+ const links=[[0,1,2,3,4],[0,5,6,7,8],[0,9,10,11,12],[0,13,14,15,16],[0,17,18,19,20],[5,9,13,17]];
+ ctx.lineWidth=3;ctx.strokeStyle='#4de1d2';ctx.fillStyle='#a18bff';
+ links.forEach(line=>{ctx.beginPath();line.forEach((n,i)=>{const p=lm[n];if(i)ctx.lineTo(p.x*canvas.width,p.y*canvas.height);else ctx.moveTo(p.x*canvas.width,p.y*canvas.height)});ctx.stroke()});
+ lm.forEach(p=>{ctx.beginPath();ctx.arc(p.x*canvas.width,p.y*canvas.height,4,0,Math.PI*2);ctx.fill()});
+}
+function onResults(res){
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ if(res.multiHandLandmarks&&res.multiHandLandmarks.length){
+  const lm=res.multiHandLandmarks[0];drawHand(lm);const p=coords(lm);current=p;
+  $('handDot').classList.add('on');$('handStatus').textContent='Mano rilevata · tracking attivo';$('confidence').style.width='100%';
+  $('posx').textContent=p.x;$('posy').textContent=p.y;
+  if(recording){const now=performance.now();if(now-lastSample>=90){samples.push({x:p.x,y:p.y,t:now-startTime});lastSample=now;updateStats()}}
+ }else{current=null;$('handDot').classList.remove('on');$('handStatus').textContent='Nessuna mano rilevata';$('confidence').style.width='0%'}
+}
+async function start(){
+ try{
+  if(!window.Hands||!window.Camera)throw Error('Librerie di tracciamento non caricate. Controlla la connessione.');
+  hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.65,minTrackingConfidence:.6});
+  hands.onResults(onResults);
+  camera=new Camera(video,{onFrame:async()=>{if(hands)await hands.send({image:video})},width:640,height:480});
+  await camera.start();$('start').disabled=true;$('record').disabled=false;$('cameraLabel').textContent='Webcam attiva';say('Webcam pronta: inquadra una mano.');
+ }catch(e){say('Errore: '+e.message)}
+}
+function updateStats(){$('frames').textContent=samples.length;$('duration').textContent=(samples.length?samples[samples.length-1].t/1000:0).toFixed(1).replace('.',',')+' s';$('play').disabled=samples.length<2;$('export').disabled=samples.length<2}
+function stopRec(){recording=false;$('record').classList.remove('active');$('record').textContent='● Registra';$('record').disabled=false;$('stop').disabled=true;updateStats();say(`Registrazione terminata: ${samples.length} punti.`)}
+$('start').onclick=start;
+$('record').onclick=()=>{if(!current){say('Prima mostra la mano alla webcam.');return}samples=[];recording=true;startTime=performance.now();lastSample=0;$('record').classList.add('active');$('record').textContent='● Registrazione…';$('record').disabled=true;$('stop').disabled=false;updateStats();say('Sto registrando i movimenti…')};
+$('stop').onclick=stopRec;
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+$('play').onclick=async()=>{if(playing||samples.length<2)return;playing=true;$('play').disabled=true;const base=samples[0].t;for(let i=0;i<samples.length;i++){if(!playing)break;const s=samples[i];$('sprite').style.transform=`translate(${s.x*.55}px,${-s.y*.42}px)`;if(i<samples.length-1)await wait(clamp(samples[i+1].t-s.t,30,250))}playing=false;$('play').disabled=false};
+function uid(){return 'b'+Math.random().toString(36).slice(2,11)}
+function makeProject(){
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50" y="76" text-anchor="middle" font-size="78">🐱</text></svg>`;
+ const asset='cat.svg', md5='handcatcostume';
+ const blocks={};let previous=null;
+ function add(opcode,inputs={},fields={},top=false){const id=uid();blocks[id]={opcode,next:null,parent:previous,inputs,fields,shadow:false,topLevel:top};if(previous)blocks[previous].next=id;previous=id;return id}
+ add('event_whenflagclicked',{}, {},true);
+ for(let i=0;i<samples.length;i++){
+  const s=samples[i], x=clamp(s.x,-220,220), y=clamp(s.y,-165,165);
+  add('motion_gotoxy',{X:[1,[4,String(x)]],Y:[1,[4,String(y)]]});
+  if(i<samples.length-1){let dt=clamp((samples[i+1].t-s.t)/1000,.03,.25);add('control_wait',{DURATION:[1,[5,String(Number(dt.toFixed(2)))]]})}
+ }
+ const sprite={isStage:false,name:'Gatto Mano',variables:{},lists:{},broadcasts:{},blocks,costumes:[{name:'gatto',bitmapResolution:1, dataFormat:'svg',assetId:md5, md5ext:md5+'.svg',rotationCenterX:50,rotationCenterY:50}],sounds:[],volume:100,layerOrder:1,visible:true,x:0,y:0,size:100,direction:90,draggable:false,rotationStyle:'all around'};
+ const stage={isStage:true,name:'Stage',variables:{},lists:{},broadcasts:{},blocks:{},costumes:[],sounds:[],volume:100,layerOrder:0,tempo:60,videoTransparency:50,videoState:'on',textToSpeechLanguage:null};
+ return {targets:[stage,sprite],monitors:[],extensions:[],meta:{semver:'3.0.0',vm:'0.2.0',agent:'Mano Scratch Studio'} ,svg};
+}
+$('export').onclick=async()=>{
+ try{
+  if(!window.JSZip)throw Error('Libreria ZIP non caricata.');
+  const p=makeProject(),zip=new JSZip();zip.file('project.json',JSON.stringify((({svg,...rest})=>rest)(p)));zip.file('handcatcostume.svg',p.svg);
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mano-to-scratch.sb3';a.click();URL.revokeObjectURL(a.href);say('Progetto Scratch esportato! Aprilo da Scratch con File → Carica dal tuo computer.');
+ }catch(e){say('Errore export: '+e.message)}
+};
+</script>
+</body></html>
